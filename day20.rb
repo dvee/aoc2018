@@ -9,56 +9,36 @@ class RoomGraph
 
   def initialize(re_str)
     @full_regex = re_str.freeze
-    @str_pos = 0
+    @i_regex = 0
     @edges = Set.new
-    parse_regex(re_str, 0, 0)
+    explore_from([[0,0]])
   end
 
-  def parse_regex(re_str, x_pos, y_pos)
-    s = re_str
-    i = 0
-    while i < s.size
-      case c = s[i]
-      when '(' #branch
-        branches(s[i..-1]).each { |b| parse_regex(b, x_pos, y_pos) }
-        return
+  def explore_from(positions)
+    prev_positions = positions.map(&:dup)
+    new_branch_positions = []
+    loop do
+      @i_regex += 1
+      case c = @full_regex[@i_regex]
       when /[NESW]/
-          x_old, y_old = x_pos, y_pos
-          x_pos, y_pos = move(x_pos, y_pos, c)
-          @edges.add([[x_old, y_old], [x_pos, y_pos]])
+        positions.each do |p|
+          p_new = move(p[0], p[1], c)
+          @edges.add([p.dup, p_new.dup])
+          p[0], p[1] = p_new[0], p_new[1]
+        end
+      when '(' #branch
+        positions = explore_from(positions)
+      when '|'
+        new_branch_positions |= positions
+        positions = prev_positions.map(&:dup)
+      when ')'
+        new_branch_positions |= positions
+        break
       when '$'
         return
       end
-      i += 1
     end
-  end
-
-  def branches(s)
-    #e.g. (NEEE|SSE(EE|N)|)XXXYYYZZZ => ["NEEEXXXYYYZZZ", "SSE(EE|N|)XXXYYYZZZ", "XXXYYYZZZ"]
-    i = 1
-    paren_count = 1
-    current_group = ""
-    groups = []
-    while paren_count > 0
-      if paren_count > 1
-        current_group << s[i]
-      else
-        if s[i] == '|' #end of group
-          groups << current_group
-          current_group = ""
-        else
-          current_group << s[i]
-        end
-      end
-      paren_count += 1 if s[i] == '('
-      paren_count -= 1 if s[i] == ')'
-      i += 1
-    end
-
-    #last group
-    groups << current_group[0..-2] #ignore trailing )
-
-    return groups.map{ |gr| gr + s[i..-1] }
+    return new_branch_positions
   end
 
   def move(x_pos, y_pos, direction)
@@ -81,11 +61,11 @@ class RoomGraph
 end
 
 s = File.read('input20.txt')
-#s = "^WSSEESWWWNW(S|NENNEEEENN(ESSSSW(NWSW|SSEN)|WSWWN(E|WWS(E|SS))))$"
 puts "exploring"
 rg = RoomGraph.new(s)
-puts "finding paths"
+puts "finding shortest paths"
 g = RGL::AdjacencyGraph.new
 g.add_edges(*rg.edges)
 paths = g.dijkstra_shortest_paths(Hash.new(1), [0,0])
 puts paths.max_by{ |k,v| v.size }[1].size - 1
+puts paths.select{ |k,v| v.size > 1000 }.count
