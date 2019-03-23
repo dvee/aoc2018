@@ -11,6 +11,7 @@ class RoomGraph
     @full_regex = re_str.freeze
     @i_regex = 0
     @edges = Set.new
+    @move_count = 0
     explore_from([[0,0]])
   end
 
@@ -55,6 +56,8 @@ class RoomGraph
       raise ArgumentError.new("#{direction} is not a valid direction")
     end
 
+    @move_count += 1
+    puts @move_count
     return x_pos, y_pos
   end
 
