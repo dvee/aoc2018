@@ -1,13 +1,16 @@
 require 'set'
 
-RUN = true
-DEBUG = true
+require 'rgl/adjacency'
+require 'rgl/dijkstra'
+
+DEBUG = false
 def debug(str)
   puts str if DEBUG
 end
 
 class Unit
   attr_reader :x, :y, :type, :map, :hp
+  attr_accessor :attack_power
   def initialize(x, y, type, map, attack_power: 3, hp: 200)
     @x = x
     @y = y
@@ -44,7 +47,7 @@ class Unit
   end
 
   def reachable_target_paths
-    shortest_paths.slice(*open_target_squares).select { |k, v| !v.nil? }
+    shortest_paths(current_position).slice(*open_target_squares).select { |k, v| !v.nil? }
   end
 
   def reachable_target_squares
@@ -52,9 +55,10 @@ class Unit
   end
 
   def nearest_squares
-    shortest_path = reachable_target_paths.min_by { |k, v| v[0].size }
+    paths = reachable_target_paths
+    shortest_path = paths.min_by { |k, v| v.size }
     return unless shortest_path
-    reachable_target_paths.select{ |k,v| !v.nil? && v[0].size == shortest_path[1][0].size }.keys
+    paths.select{ |k,v| !v.nil? && v.size == shortest_path[1].size }.keys
   end
 
   def choose_target_square
@@ -64,7 +68,9 @@ class Unit
 
   def choose_step(target_square)
     return unless target_square
-    shortest_paths[target_square].map { |p| p[1] || target_square }.min_by { |x, y| @map.reading_order_value(x, y) }
+    reverse_paths = shortest_paths(target_square).slice(*open_neighbouring_squares).select{ |k, v| !v.nil? }
+    min_length = reverse_paths.values.map(&:size).min
+    reverse_paths.select { |k, v| v.size == min_length }.min_by { |k ,v| @map.reading_order_value(*k) }[0]
   end
 
   def move(target)
@@ -100,37 +106,40 @@ class Unit
     @map.kill_unit(self) if @hp <= 0
   end
 
-  def shortest_paths
+  def shortest_paths(start)
     # graph where edges represent allowed moves between squares
     edges = Set.new
 
+    neighbours = lambda do |x, y|
+      if x == 0 && y == 0
+        []
+      elsif x == 0
+        [[x, y - 1]]
+      elsif y == 0
+        [[x - 1, y]]
+      else
+        [[x - 1, y], [x, y - 1]]
+      end
+    end
+
     (0...@map.dy).each do |y|
       (0...@map.dx).each do |x|
-        neighbours = begin
-          if x == 0 && y == 0
-            []
-          elsif x == 0
-            [[x, y - 1]]
-          elsif y == 0
-            [[x - 1, y]]
-          else
-            [[x - 1, y], [x, y - 1]]
-          end
-        end
-
-        neighbours.each do |x1, y1|
+        neighbours[x, y].each do |x1, y1|
           edges.add([[x, y], [x1, y1]]) if @map.grid[y][x] == '.'  && @map.grid[y1][x1] == '.'
         end
       end
     end
 
     # add edges for source (starting) position
-    neighbouring_positions.each do |x1, y1|
-      edges.add([[x1, y1], [x, y]]) if @map.grid[y1][x1] == '.'
+    x, y = start
+    [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].each do |x1, y1|
+      edges.add([[x1, y1], start]) if @map.grid[y1][x1] == '.'
     end
 
-    g = UnitAdjacencyGraph.new(edges)
-    return g.shortest_paths([x, y])
+    g = RGL::AdjacencyGraph.new
+    g.add_edges(*edges)
+    g.add_vertex(start)
+    return g.dijkstra_shortest_paths( proc { 1 }, start)
   end
 
   def current_position
@@ -197,6 +206,8 @@ class Map
 end
 
 class Battle
+  class ElfDeathError < StandardError; end
+
   attr_reader :map
   def initialize(map_data)
     @map = Map.new(map_data)
@@ -206,24 +217,34 @@ class Battle
     units_move_order = map.units.sort_by { |u| map.reading_order_value(u.x, u.y) }
     units_move_order.each do |unit|
       next unless map.units.include?(unit) #unit has already died during this phase
-      puts "finding move for #{unit.current_position}"
       unit.choose_and_make_move if unit.targets_already_in_range.empty?
       unit.attack
     end
   end
 
-  def run
+  def run(stop_on_elf_death: false)
     n_phase = 0
-    while map.units.count{ |u| u.type == 'G' } > 0 && map.units.count{ |u| u.type == 'E' } > 0
+    starting_elves = unit_count('E')
+    while unit_count('G') > 0 && unit_count('E') > 0
       phase
+      raise ElfDeathError if unit_count('E') < starting_elves
       n_phase += 1
-      puts "after #{n_phase} rounds"
-      puts self
+      #puts "after #{n_phase} rounds"
+      #puts self
     end
 
-    outcome = n_phase * @map.units.sum { |u| u.hp }
-    puts "outcome: #{outcome}"
+    unit_hp_sum = @map.units.sum { |u| u.hp }
+    outcome = n_phase * unit_hp_sum
+    puts "outcome: #{n_phase} * #{unit_hp_sum} = #{outcome}"
     return outcome
+  end
+
+  def unit_count(type)
+    map.units.count { |u| u.type == type }
+  end
+
+  def set_attack_power(unit_type, power)
+    map.units.select { |u| u.type == unit_type }.each{ |u| u.attack_power = power }
   end
 
   def to_s
@@ -309,7 +330,7 @@ class UnitAdjacencyGraph
   end
 end
 
-if RUN
+def main
   my_input = <<-'DATA'
 ################################
 #######..G######################
