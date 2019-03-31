@@ -1,5 +1,3 @@
-require 'rgl/adjacency'
-require 'rgl/connected_components'
 require 'set'
 
 points = File.read('input25.txt').split("\n").map{ |s| s.match(/(-?\d+),(-?\d+),(-?\d+),(-?\d+)/).captures.map(&:to_i) }

@@ -85,7 +85,7 @@ class Computer
       #binding.pry
       self.send(instruction[0], *instruction[1])
       output << "=> #{@r}"
-      puts output
+      puts output if r[@ip] == 28
       r[@ip] += 1
       @instruction_count += 1
       if !@prev_states.add?(@r.dup)
