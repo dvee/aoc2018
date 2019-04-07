@@ -21,8 +21,7 @@ puts "0: #{next_state}"
   (2..(next_state.size - 3)).each do |i|
     next_state[i] = rules[current_state[(i-2)..(i+2)]] || '.'
   end
-  #puts "#{t + 1}: #{next_state}"
-  puts t if t % 1000 == 0
+  puts "#{t + 1}: #{next_state}"
   while next_state[0..4].include?('#')
     next_state.prepend(".")
     index_offset -= 1
@@ -47,7 +46,7 @@ puts rules
 
 # use some kind of linked list instead
 
-# .. still too slow..
+# .. still too slow ..
 
 class DoublyLinkedListWithIndex
   include Enumerable
@@ -134,9 +133,6 @@ class DoublyLinkedListWithIndex
   end
 end
 
-l = DoublyLinkedListWithIndex.new(initial_state.chars)
-
-puts l.map{ |e| e.data }.to_s
 
 def pad_ends(l1, l2)
   while l1.first(5).map{ |e| e.data }.include?('#')
@@ -160,7 +156,10 @@ pad_ends(next_state, current_state)
 
 puts "0: #{state_to_s(next_state)}"
 
-50000000000.times do |t|
+s = 0
+s_last = 0
+
+1000.times do |t|
   test_window = ["."] * 5
   e2 = next_state.start_of_list
   current_state.each do |e1|
@@ -173,13 +172,16 @@ puts "0: #{state_to_s(next_state)}"
   pad_ends(next_state, current_state)
   current_state, next_state = next_state, current_state
 
-  if t % 1000 == 0
-    s = 0
-    current_state.each do |e|
-      s += e.index if e.data == '#'
-    end
-    puts "t:#{t}, s:#{s}"
+  s_last = s
+  s = 0
+  current_state.each do |e|
+    s += e.index if e.data == '#'
   end
+  puts "t:#{t}, s:#{s}, delta: #{s - s_last}"
+
 end
 
+# By inspecting the output, we reach a constant steady state ds/dt after t = 158 iterations
+# (adding 33 each step) so thankfully have an analytical solution for s(50000000000):
 
+puts s + (s - s_last) * (50000000000 - 1000)
