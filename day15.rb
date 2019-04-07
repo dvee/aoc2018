@@ -227,7 +227,7 @@ class Battle
     starting_elves = unit_count('E')
     while unit_count('G') > 0 && unit_count('E') > 0
       phase
-      raise ElfDeathError if unit_count('E') < starting_elves
+      raise ElfDeathError if stop_on_elf_death && unit_count('E') < starting_elves
       n_phase += 1
       #puts "after #{n_phase} rounds"
       #puts self
@@ -252,81 +252,6 @@ class Battle
       units_health_str = @map.units.select{ |u| u.y == y }.map{ |u| "#{u.type}(#{u.hp})"}.join ", "
       @map.grid[y].join("") + "    " + units_health_str
     end.join "\n"
-  end
-end
-
-class UnitAdjacencyGraph
-  attr_reader :vertices
-  def initialize(edges)
-    @vertices = Hash.new { |h, k| h[k] = Vertex.new(k) }
-    edges.each do |e|
-      @vertices[e[0]].add_neighbour(@vertices[e[1]])
-      @vertices[e[1]].add_neighbour(@vertices[e[0]])
-    end
-  end
-
-  ##
-  # calculates shortest paths to each vertex from start.
-  # returns a hash with keys as the target, and values as the list of all
-  # paths having the shortest length. A path is a list of vertices traversed
-  # to get to the target.
-  def shortest_paths(start)
-    paths = Hash.new
-    @vertices.values.each { |v| paths[v] = [[]] }
-    visited = Set.new
-    queue = [@vertices[start]]
-    while !queue.empty?
-      current_vertex = queue.shift
-      next if visited.include?(current_vertex)
-      current_vertex.neighbours.each do |v|
-        next if visited.include?(v)
-        if paths[v][0].empty? || paths[v][0].size > paths[current_vertex][0].size + 1
-          paths[v] = paths[current_vertex].map { |p| p.dup << current_vertex }
-        elsif paths[v][0].size == paths[current_vertex][0].size + 1
-          paths[v] += paths[current_vertex].map { |p| p.dup << current_vertex }
-        end
-        queue.push(v)
-      end
-      visited.add(current_vertex)
-      puts visited.size
-    end
-
-    # map back to original "id" domain
-    out = Hash.new
-    paths.each do |vertex, ps|
-      out[vertex.id] = ps.map do |p|
-        p.map do |v|
-          v.id
-        end
-      end
-      out[vertex.id] = nil if ps[0].empty?
-    end
-    out
-  end
-
-  class Vertex
-    attr_reader :id
-    attr_accessor :neighbours
-    def initialize(id)
-      @id = id
-      @neighbours = Set.new
-    end
-
-    def add_neighbour(vertex)
-      @neighbours.add(vertex)
-    end
-
-    def eql?(other_key)
-      id == other_key.id
-    end
-
-    def hash
-      id.hash
-    end
-
-    def inspect
-      id
-    end
   end
 end
 

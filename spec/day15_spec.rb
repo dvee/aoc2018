@@ -249,22 +249,4 @@ describe "Problem 15" do
       end
     end
   end
-
-  describe UnitAdjacencyGraph do
-    describe "#shortest_paths" do
-      context "with test graph 1" do
-        let(:graph) { UnitAdjacencyGraph.new(graph_1_edges) }
-        it "should return multiple shortest paths from node 1 to node 5" do
-          paths = graph.shortest_paths(1)
-          expect(paths[5].size).to eq 2
-        end
-
-        it "should return the correct path length to node 5" do
-          paths = graph.shortest_paths(1)
-          expect(paths[5][0].size).to eq 3
-          expect(paths[5][1].size).to eq 3
-        end
-      end
-    end
-  end
 end
