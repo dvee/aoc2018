@@ -1,4 +1,3 @@
-require 'pry'
 
 steps = File.read('input7_test.txt').split("\n")
 steps = steps.map{ |s| s.match(/Step (\w) must be finished before step (\w) can begin\./).captures }

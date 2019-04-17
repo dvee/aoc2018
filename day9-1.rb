@@ -1,4 +1,3 @@
-require 'pry'
 
 PLAYERS = 478
 MARBLES = 71240
@@ -14,7 +13,6 @@ class Marbles
   end
 
   def turn
-    #binding.pry
     #print_state
     #puts @count
     if @count % 23 == 0
