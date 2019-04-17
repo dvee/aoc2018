@@ -1,7 +1,10 @@
-require 'pry'
+INPUT_FILE = "input10.txt"
 
-f = File.read("input10.txt").split("\n")
-
+def read_input(filename)
+  File.read(filename).split("\n").map do |s|
+    Point.new(*s.match(/position=< *(-?\d+), *(-?\d+)> velocity=< *(-?\d+), *(-?\d+)>/).captures)
+  end
+end
 
 class Point
   attr_accessor :x, :y, :vx, :vy
@@ -24,9 +27,7 @@ class Point
 
 end
 
-points = f.map do |s|
-  Point.new(*s.match(/position=< *(-?\d+), *(-?\d+)> velocity=< *(-?\d+), *(-?\d+)>/).captures)
-end
+points = read_input(INPUT_FILE)
 
 puts points.to_s
 
@@ -55,11 +56,7 @@ def get_grid(points)
 
   grid = Array.new(y_range + 1){ Array.new(x_range + 1) { '.' } }
 
-  #puts "#{y_offset} #{x_offset} #{y_range} #{x_range}"
-
-  points.each { |p|
-    #puts "#{p.y} #{p.x} #{p.y - y_offset} #{p.x - x_offset} "
-    grid[p.y - y_offset][p.x - x_offset] = '#' }
+  points.each { |p| grid[p.y - y_offset][p.x - x_offset] = '#' }
 
   return grid
 end
@@ -69,20 +66,26 @@ def print_grid(g)
   g.each { |gg| puts gg.to_s }
 end
 
+# Find when the grid of points are most "orderly".
+# Try using grid size as a measure of disorder, i.e. minimize grid size.
+
 grids = []
-10243.times do |i|
-  #g = get_grid(points)
-  #grids << [g.size * g.first.size, g.dup]
-  #print_grid(g)
-  #puts [i, get_grid_size(points)].to_s
+
+50000.times do |i|
   grids << [i, get_grid_size(points)]
+  points.each { |p| p.step }
+end
+
+n_star = grids.min_by { |i, size| size }[0]
+
+puts n_star
+
+#restart and move n_star steps
+points = read_input(INPUT_FILE)
+
+n_star.times do |i|
   points.each { |p| p.step }
 end
 
 g = get_grid(points)
 print_grid(g)
-
-#print_grid(grids.min_by { |g| g[0] }[1])
-#puts grids
-#puts grids.min_by { |g| g[1] }
-
